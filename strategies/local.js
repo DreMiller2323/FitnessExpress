@@ -1,42 +1,39 @@
+// Bring in the required libraries
+var passport = require('passport');
+var LocalStrategy = require('passport-local').Strategy;
+var models = require('../models');
 
-
-var LocalStrategy = require('passport-local');
-var passport = require('passport')
-var db = require('../database');
-
-passport.serializeUser((user,done)=>{
-done(null, user.username);
-
-});
-
-passport.deserializeUser(async(id, done)=>{
-   try{
-    const result = await db.promise().query(`SELECT * FROM  USERS WHERE USERNAME='${username}'`)
-if (result[0],[0]){
-    console.log(result)
-}
-   }catch(err){
-       console.log(err,null)
-   }
-});
-
-passport.use('local', new LocalStrategy(
-    async (username, password, done) => {
-
-        try {
-            const result = await db.promise().query(`SELECT * FROM  USERS WHERE USERNAME='${username}'`);
-            if (result[0].length === 0) {
-                console.log(result);
-                done(null, false);
-            } else {
-                if (result[0].password === password) {
-                    done(null, result[0][0]);
-                } else {
-                    done(null, false);
+// Configure the login validation
+passport.use(
+    'local',
+    new LocalStrategy(function (username, password, done) {
+        models.users.findOne({ where: { Username: username } })
+            .then(user => {
+                if (!user) {
+                    return done(null, false, { message: 'Incorrect username.' });
                 }
-            }
-        } catch (err) {
-            done(err, false);
-        }
-    }
-));
+                if (user.Password !== password) {
+                    return done(null, false, { message: 'Incorrect password.' });
+                }
+                return done(null, user);
+            })
+            .catch(err => {
+                if (err) { return done(err); }
+            });
+    })
+);
+
+// Stores the user id in the user session
+passport.serializeUser((user, callback) => {
+    callback(null, user.UserId);
+});
+
+// Queries the database for the user details and adds to the request object in the routes
+passport.deserializeUser((id, callback) => {
+    models.users
+        .findByPk(id)
+        .then(user => callback(null, user))
+        .catch(err => callback(err));
+});
+
+module.exports = passport;

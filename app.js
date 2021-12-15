@@ -1,37 +1,36 @@
 var createError = require('http-errors');
 var express = require('express');
 var cookieParser = require('cookie-parser');
+var cors=require ("cors");
 var logger = require('morgan');
+var bodyParser=require("body-parser")
+var path= require("path");
 var passport = require('passport');
-var local = require("./strategies/local")
 var session = require("express-session");
+var models = require("./models");
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+
 var app = express();
-var cors = require("cors");
 app.use(cors());
-
-
 app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.static(path.join(__dirname,'fitness-frontend/src/pages',)));
+app.use(express.json({limit: '20mb'}));
+app.use(express.urlencoded({ extended: false, limit: '20mb' }))
 app.use(cookieParser());
 app.use(session({
     secret: "some Secret",
-    maxAge: 30000,
     saveUninitialized: false,
     resave: true,
     cookie: {}
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-var local = require("./strategies/local")
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var authRouter = require('./routes/auth');
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-app.use('/auth', authRouter);
-
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(bodyParser.json())
 app.use(function (req, res, next) {
     next(createError(404));
 });
@@ -41,4 +40,7 @@ app.use(function (err, req, res, next) {
     res.locals.error = req.app.get('env') === 'development' ? err : {};
 
 });
+models.sequelize.sync().then(function () {
+    console.log("DB Sync'd up")
+  });
 module.exports = app;
